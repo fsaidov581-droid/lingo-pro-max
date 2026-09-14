@@ -1,0 +1,513 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Lingo Pro</title>
+
+  <style>
+    * {
+      box-sizing: border-box;
+    }
+
+    body {
+      margin: 0;
+      font-family: Arial, sans-serif;
+      background:
+        linear-gradient(rgba(255,255,255,.82), rgba(255,255,255,.88)),
+        url("https://images.unsplash.com/photo-1513635269975-59663e0ac1ad?auto=format&fit=crop&w=2000&q=80")
+        center/cover fixed;
+      min-height: 100vh;
+    }
+
+    .app {
+      max-width: 1000px;
+      margin: auto;
+      padding: 30px;
+    }
+
+    .card {
+      background: white;
+      border-radius: 25px;
+      padding: 30px;
+      box-shadow: 0 8px 30px rgba(0,0,0,.15);
+      margin-bottom: 20px;
+    }
+
+    h1 {
+      color: #58a700;
+      font-size: 38px;
+    }
+
+    button {
+      border: 0;
+      border-radius: 14px;
+      padding: 14px 22px;
+      font-size: 17px;
+      font-weight: bold;
+      cursor: pointer;
+      margin: 5px;
+    }
+
+    .google {
+      background: #4285f4;
+      color: white;
+    }
+
+    .green {
+      background: #58a700;
+      color: white;
+    }
+
+    .red {
+      background: #ff4b4b;
+      color: white;
+    }
+
+    .stats {
+      display: flex;
+      gap: 15px;
+      flex-wrap: wrap;
+    }
+
+    .stat {
+      background: #f1f8e9;
+      padding: 15px 20px;
+      border-radius: 15px;
+      font-size: 18px;
+    }
+
+    #userInfo {
+      margin-top: 15px;
+    }
+
+    #status {
+      margin-top: 20px;
+      font-weight: bold;
+    }
+  </style>
+</head>
+
+<body>
+
+<div class="app">
+
+  <div class="card">
+    <h1>🦉 Lingo Pro</h1>
+
+    <p>
+      Изучай английский и сохраняй свой прогресс.
+    </p>
+
+    <button class="google" onclick="loginGoogle()">
+      🔐 Войти через Google
+    </button>
+
+    <button class="red" onclick="logout()">
+      Выйти
+    </button>
+
+    <div id="userInfo">
+      Ты пока не вошёл.
+    </div>
+  </div>
+
+
+  <div class="card">
+    <h2>📊 Мой прогресс</h2>
+
+    <div class="stats">
+
+      <div class="stat">
+        ⭐ XP: <span id="xp">0</span>
+      </div>
+
+      <div class="stat">
+        📚 Уроков: <span id="lessons">0</span>
+      </div>
+
+      <div class="stat">
+        🔥 Серия: <span id="streak">0</span>
+      </div>
+
+      <div class="stat">
+        ❤️ Жизни: <span id="hearts">5</span>
+      </div>
+
+    </div>
+
+    <br>
+
+    <button class="green" onclick="addXP()">
+      +100 XP за урок
+    </button>
+
+    <button class="green" onclick="completeLesson()">
+      ✅ Завершить урок
+    </button>
+
+    <button class="green" onclick="saveProgress()">
+      💾 Сохранить
+    </button>
+
+    <div id="status"></div>
+  </div>
+
+</div>
+
+
+<!-- Firebase -->
+<script type="module">
+
+  import { initializeApp }
+    from "https://www.gstatic.com/firebasejs/12.1.0/firebase-app.js";
+
+  import {
+    getAuth,
+    GoogleAuthProvider,
+    signInWithPopup,
+    signOut,
+    onAuthStateChanged
+  }
+  from "https://www.gstatic.com/firebasejs/12.1.0/firebase-auth.js";
+
+  import {
+    getFirestore,
+    doc,
+    getDoc,
+    setDoc
+  }
+  from "https://www.gstatic.com/firebasejs/12.1.0/firebase-firestore.js";
+
+
+  // ==================================================
+  // 🔥 ВСТАВЬ СЮДА СВОЙ FIREBASE CONFIG
+  // ==================================================
+
+  const firebaseConfig = {
+
+    apiKey: "ТВОЙ_API_KEY",
+
+    authDomain:
+      "ТВОЙ_PROJECT_ID.firebaseapp.com",
+
+    projectId:
+      "ТВОЙ_PROJECT_ID",
+
+    storageBucket:
+      "ТВОЙ_PROJECT_ID.firebasestorage.app",
+
+    messagingSenderId:
+      "ТВОЙ_MESSAGING_SENDER_ID",
+
+    appId:
+      "ТВОЙ_APP_ID"
+
+  };
+
+
+  // ==================================================
+  // Firebase
+  // ==================================================
+
+  const app = initializeApp(firebaseConfig);
+
+  const auth = getAuth(app);
+
+  const db = getFirestore(app);
+
+  const provider = new GoogleAuthProvider();
+
+
+  // ==================================================
+  // Данные Lingo Pro
+  // ==================================================
+
+  let state = {
+
+    xp: 0,
+
+    lessons: 0,
+
+    streak: 0,
+
+    hearts: 5
+
+  };
+
+
+  let currentUser = null;
+
+
+  // ==================================================
+  // GOOGLE LOGIN
+  // ==================================================
+
+  window.loginGoogle = async function() {
+
+    try {
+
+      const result =
+        await signInWithPopup(auth, provider);
+
+      currentUser = result.user;
+
+      document.getElementById("status").textContent =
+        "✅ Вход выполнен!";
+
+    }
+
+    catch(error) {
+
+      console.error(error);
+
+      document.getElementById("status").textContent =
+        "❌ Ошибка входа: " + error.message;
+
+    }
+
+  };
+
+
+  // ==================================================
+  // LOGOUT
+  // ==================================================
+
+  window.logout = async function() {
+
+    try {
+
+      await signOut(auth);
+
+      currentUser = null;
+
+      document.getElementById("userInfo").textContent =
+        "Ты вышел из аккаунта.";
+
+    }
+
+    catch(error) {
+
+      console.error(error);
+
+    }
+
+  };
+
+
+  // ==================================================
+  // ЗАГРУЗКА ПРОГРЕССА
+  // ==================================================
+
+  async function loadProgress(user) {
+
+    const userRef =
+      doc(db, "users", user.uid);
+
+    const snapshot =
+      await getDoc(userRef);
+
+
+    if (snapshot.exists()) {
+
+      state = snapshot.data();
+
+    }
+
+    else {
+
+      state = {
+
+        xp: 0,
+
+        lessons: 0,
+
+        streak: 0,
+
+        hearts: 5
+
+      };
+
+      await setDoc(userRef, state);
+
+    }
+
+
+    updateScreen();
+
+  }
+
+
+  // ==================================================
+  // СОХРАНЕНИЕ
+  // ==================================================
+
+  window.saveProgress = async function() {
+
+    if (!currentUser) {
+
+      alert("Сначала войди через Google!");
+
+      return;
+
+    }
+
+
+    try {
+
+      await setDoc(
+
+        doc(db, "users", currentUser.uid),
+
+        state
+
+      );
+
+
+      document.getElementById("status").textContent =
+        "💾 Прогресс сохранён!";
+
+    }
+
+    catch(error) {
+
+      console.error(error);
+
+      document.getElementById("status").textContent =
+        "❌ Ошибка сохранения.";
+
+    }
+
+  };
+
+
+  // ==================================================
+  // +100 XP
+  // ==================================================
+
+  window.addXP = async function() {
+
+    if (!currentUser) {
+
+      alert("Сначала войди через Google!");
+
+      return;
+
+    }
+
+
+    state.xp += 100;
+
+    updateScreen();
+
+    await saveProgress();
+
+  };
+
+
+  // ==================================================
+  // УРОК ЗАВЕРШЁН
+  // ==================================================
+
+  window.completeLesson = async function() {
+
+    if (!currentUser) {
+
+      alert("Сначала войди через Google!");
+
+      return;
+
+    }
+
+
+    state.lessons += 1;
+
+    state.xp += 20;
+
+    state.streak += 1;
+
+    state.hearts = 5;
+
+
+    updateScreen();
+
+    await saveProgress();
+
+  };
+
+
+  // ==================================================
+  // ОБНОВЛЕНИЕ ЭКРАНА
+  // ==================================================
+
+  function updateScreen() {
+
+    document.getElementById("xp").textContent =
+      state.xp;
+
+    document.getElementById("lessons").textContent =
+      state.lessons;
+
+    document.getElementById("streak").textContent =
+      state.streak;
+
+    document.getElementById("hearts").textContent =
+      state.hearts;
+
+  }
+
+
+  // ==================================================
+  // ПРОВЕРКА GOOGLE-ПОЛЬЗОВАТЕЛЯ
+  // ==================================================
+
+  onAuthStateChanged(auth, async (user) => {
+
+    if (user) {
+
+      currentUser = user;
+
+
+      document.getElementById("userInfo").innerHTML =
+
+        "👤 <b>" +
+        user.displayName +
+        "</b><br>" +
+
+        "📧 " +
+        user.email;
+
+
+      await loadProgress(user);
+
+    }
+
+    else {
+
+      currentUser = null;
+
+      document.getElementById("userInfo").textContent =
+        "Ты пока не вошёл.";
+
+      state = {
+
+        xp: 0,
+
+        lessons: 0,
+
+        streak: 0,
+
+        hearts: 5
+
+      };
+
+      updateScreen();
+
+    }
+
+  });
+
+</script>
+
+</body>
+</html>
